@@ -1,0 +1,590 @@
+<template>
+  <q-page class="q-pa-md">
+    <div class="text-h6 q-mb-lg" style="margin-left: 15px; margin-top: 10px">Inventory Order</div>
+    <q-tabs v-model="tab" dense align="left" style="margin-left: 20px">
+      <q-tab name="order-history" label="รายการคำสั่งซื้อ" />
+      <q-tab name="all-products" label="สินค้าทั้งหมด" />
+      <q-tab name="cart" label="ตะกร้าสินค้า" />
+    </q-tabs>
+
+    <q-separator />
+
+    <!-- ใช้ q-tab-panels เดียว -->
+    <q-tab-panels v-model="tab">
+      <!-- ประวัติการสั่งซื้อ -->
+      <q-tab-panel name="order-history">
+        <q-card-section>
+          <div class="text-head">รายการคำสั่งซื้อ</div>
+
+          <!-- ฟิลเตอร์การค้นหาคำสั่งซื้อ -->
+          <div class="q-mb-md" style="display: flex; justify-content: flex-start; gap: 10px">
+            <!-- ค้นหาตาม ID คำสั่งซื้อ -->
+            <q-input
+              v-model="searchOrderTerm"
+              placeholder="ค้นหาตาม ID คำสั่งซื้อ หรือ ชื่อผู้สั่ง"
+              outlined
+              dense
+              class="q-w-100"
+              style="width: 90%"
+            >
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+
+            <!-- เลือกสถานะ -->
+            <q-select
+              v-model="statusFilter"
+              :options="statuses"
+              label="เลือกสถานะ"
+              outlined
+              dense
+              class="q-w-100"
+              style="width: 10%"
+            />
+          </div>
+          <div style="display: flex; gap: 10px; width: 40%; margin-bottom: 17px">
+            <div class="text-date">จากวันที่ :</div>
+            <q-input
+              v-model="startDate"
+              label="จากวันที่"
+              outlined
+              dense
+              type="date"
+              class="q-w-100"
+            />
+            <div class="text-date">ถึงวันที่ :</div>
+            <q-input
+              v-model="endDate"
+              label="ถึงวันที่"
+              outlined
+              dense
+              type="date"
+              class="q-w-100"
+            />
+          </div>
+
+          <q-table :rows="filteredOrders" :columns="orderColumns" row-key="id" class="q-pa-sm">
+            <template v-slot:body-cell-status="props">
+              <q-td :props="props">
+                <div :class="statusClass(props.row.status)" class="status-badge">
+                  {{ props.row.status }}
+                </div>
+              </q-td>
+            </template>
+            <!-- Slot สำหรับการอัปเดตสถานะ -->
+            <template v-slot:body-cell-updateStatus="props">
+              <q-td :props="props">
+                <div style="display: flex; justify-content:">
+                  <!-- เลือกสถานะ -->
+                  <q-select
+                    v-if="props.row.status !== 'delivered'"
+                    v-model="props.row.tempStatus"
+                    :options="statusesUpdate"
+                    outlined
+                    dense
+                    class="q-w-100"
+                    style="max-width: 120px; margin-right: 20px"
+                  />
+                  <!-- ปุ่มยืนยันการอัปเดต -->
+                  <q-btn
+                    v-if="props.row.status !== 'delivered'"
+                    label="ยืนยัน"
+                    color="green"
+                    class="q-mt-sm"
+                    style="margin: 1px; margin-right: 10px"
+                    @click="updateStatus(props.row)"
+                  />
+                  <!-- ปุ่มดูรายละเอียด -->
+                  <q-btn
+                    label="ดูรายละเอียด"
+                    color="primary"
+                    class="q-mt-sm"
+                    style="margin: 1px"
+                    @click="viewDetails(props.row)"
+                  />
+                </div>
+              </q-td>
+            </template>
+          </q-table>
+        </q-card-section>
+
+        <div class="orderTab-button-margin">
+          <q-btn label="รายงานและการวิเคราะห์ข้อมูล" color="purple-5" class="q-mt-md" />
+          <q-btn
+            label="สั่งซื้อสินค้าใหม่"
+            color="primary"
+            class="q-mt-md"
+            icon-right="keyboard_arrow_right"
+            @click="tab = 'all-products'"
+          />
+        </div>
+      </q-tab-panel>
+
+      <!-- สินค้าทั้งหมด -->
+      <q-tab-panel name="all-products">
+        <q-card-section>
+          <div class="text-head">สินค้าทั้งหมด</div>
+
+          <!-- ฟิลเตอร์การค้นหา -->
+          <div class="q-mb-md" style="display: flex; justify-content: space-between">
+            <!-- ค้นหาสินค้า -->
+            <q-input
+              v-model="searchTerm"
+              placeholder="ค้นหาสินค้า"
+              outlined
+              dense
+              class="q-w-100"
+              style="width: 30%"
+            >
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+
+            <q-btn
+              label="ตะกร้าสินค้า"
+              color="primary"
+              class="q-mt-md"
+              icon-right="keyboard_arrow_right"
+              @click="tab = 'cart'"
+            />
+          </div>
+
+          <!-- แสดงสินค้า -->
+          <div class="q-gutter-md">
+            <q-card v-for="product in filteredProducts" :key="product.id" class="q-mb-md">
+              <q-card-section>
+                <div class="text-h6">{{ product.name }}</div>
+                <div class="text-body2">ราคา: {{ product.price }} บาท</div>
+                <div class="text-body2">คงเหลือ: {{ product.quantity }} ชิ้น</div>
+                <div class="text-body2">ซัพพลายเออร์: {{ product.supplier }}</div>
+              </q-card-section>
+
+              <q-card-actions>
+                <q-input
+                  v-model="product.orderQuantity"
+                  type="number"
+                  min="1"
+                  max="100"
+                  label="จำนวน"
+                  outlined
+                  dense
+                  class="q-w-100"
+                >
+                  <template v-slot:append>
+                    <q-btn flat icon="remove" @click="decreaseQuantity(product)" />
+                    <q-btn flat icon="add" @click="increaseQuantity(product)" />
+                  </template>
+                </q-input>
+                <q-btn label="เพิ่มลงตะกร้า" color="primary" @click="addToCart(product)" />
+              </q-card-actions>
+            </q-card>
+          </div>
+        </q-card-section>
+      </q-tab-panel>
+
+      <!-- ตะกร้าสินค้า -->
+      <q-tab-panel name="cart">
+        <q-card-section>
+          <div class="text-head">ตะกร้าสินค้า</div>
+          <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm" />
+
+          <!-- ปุ่มดำเนินการ -->
+          <q-btn
+            label="ยืนยันการสั่งซื้อ"
+            color="primary"
+            class="q-mt-md"
+            @click="openOrderDialog"
+          />
+        </q-card-section>
+      </q-tab-panel>
+    </q-tab-panels>
+
+    <!-- QDialog for Order Details -->
+    <q-dialog v-model="dialogVisible">
+      <q-card>
+        <q-card-section>
+          <div>
+            <strong>Order ID:</strong> {{ selectedOrder?.id }}<br />
+            <strong>Order Date:</strong> {{ selectedOrder?.orderDate }}<br />
+            <strong>Staff Name:</strong> {{ selectedOrder?.staffName }}<br />
+            <strong>Status:</strong> {{ selectedOrder?.status }}<br />
+            <strong>Delivery Date:</strong> {{ selectedOrder?.deliveryDate || 'Not delivered yet'
+            }}<br />
+            <strong>Amount:</strong> {{ selectedOrder?.totalAmount }}<br />
+            <strong>Note:</strong> {{ selectedOrder?.note }}<br />
+          </div>
+        </q-card-section>
+        <q-card-actions>
+          <q-btn label="Close" color="primary" @click="closeDialog" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- QDialog for Order Confirmation -->
+    <q-dialog v-model="isOrderDialogVisible">
+      <q-card>
+        <q-card-section>
+          <div class="text-center text-h6">ยืนยันการสั่งซื้อ</div>
+          <p>กรุณายืนยันการสั่งซื้อของท่าน</p>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="ยกเลิก" color="negative" @click="closeOrderDialog" />
+          <q-btn flat label="ยืนยัน" color="positive" @click="confirmOrder" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+  </q-page>
+</template>
+
+<script lang="ts">
+import { defineComponent, ref, onMounted, watch, computed } from 'vue'
+import { type QTableColumn } from 'quasar'
+import axios from 'axios'
+
+import type { CartItem, InventoryItem, OrderRecord } from 'src/models'
+
+export default defineComponent({
+  setup() {
+    const tab = ref('order-history') // กำหนดค่าเริ่มต้นให้แสดงแท็บ "รายการคำสั่งซื้อ"
+
+    const products = ref<InventoryItem[]>([])
+    const cartItems = ref<CartItem[]>([])
+    const orderHistory = ref<OrderRecord[]>([])
+
+    const searchTerm = ref('')
+    const selectedCategory = ref('ทั้งหมด')
+    const searchOrderTerm = ref('')
+    const statusFilter = ref('ทั้งหมด')
+    const startDate = ref('')
+    const endDate = ref('')
+
+    const categories = ['ทั้งหมด', 'อุปกรณ์สำนักงาน', 'เครื่องใช้ไฟฟ้า', 'อิเล็กทรอนิกส์']
+    const statuses = ['ทั้งหมด', 'pending', 'delivered']
+    const statusesUpdate = ['pending', 'delivered']
+
+    const dialogVisible = ref(false)
+    const selectedOrder = ref<OrderRecord | null>(null)
+
+    const selectedQuantity = ref(1)
+
+    const isOrderDialogVisible = ref(false) // ใช้สำหรับควบคุมการแสดง/ซ่อนไดอะล็อกยืนยันการสั่งซื้อ
+    const isDetailsDialogVisible = ref(false) // ใช้สำหรับควบคุมการแสดง/ซ่อนไดอะล็อกรายละเอียดการสั่งซื้อ
+
+    const openOrderDialog = () => {
+      isOrderDialogVisible.value = true
+    }
+
+    // ฟังก์ชันปิดไดอะล็อกยืนยันการสั่งซื้อ
+    const closeOrderDialog = () => {
+      isOrderDialogVisible.value = false
+    }
+
+    // ฟังก์ชันยืนยันการสั่งซื้อ
+    const confirmOrder = () => {
+      console.log('Order confirmed!')
+      closeOrderDialog() // ปิดไดอะล็อกหลังจากยืนยันการสั่งซื้อ
+    }
+
+    const increaseQuantity = (product: InventoryItem) => {
+      product.orderQuantity += 1
+    }
+
+    const decreaseQuantity = (product: InventoryItem) => {
+      if (product.orderQuantity > 1) {
+        product.orderQuantity -= 1
+      }
+    }
+
+    const viewDetails = (row: OrderRecord) => {
+      selectedOrder.value = row
+      dialogVisible.value = true
+    }
+
+    const closeDialog = () => {
+      dialogVisible.value = false
+    }
+
+    const loadProducts = async () => {
+      try {
+        const response = await axios.get('http://localhost:5002/inventory-items')
+        products.value = response.data.map((item: InventoryItem) => ({
+          ...item,
+          orderQuantity: 1,
+        }))
+      } catch (error) {
+        console.error('Error loading products:', error)
+      }
+    }
+
+    const loadCart = async () => {
+      try {
+        const response = await axios.get('http://localhost:5002/cart-items')
+        cartItems.value = response.data
+      } catch (error) {
+        console.error('Error loading cart items:', error)
+      }
+    }
+
+    const loadOrderHistory = async () => {
+      try {
+        const response = await axios.get('http://localhost:5002/order-records')
+        orderHistory.value = response.data.map((order: OrderRecord) => ({
+          ...order,
+          tempStatus: order.status, // ตั้งค่า tempStatus เริ่มต้นจาก status
+        }))
+      } catch (error) {
+        console.error('Error loading order history:', error)
+      }
+    }
+
+    const loadDataForTab = () => {
+      if (tab.value === 'all-products') {
+        loadProducts()
+      } else if (tab.value === 'cart') {
+        loadCart()
+      } else if (tab.value === 'order-history') {
+        loadOrderHistory()
+      }
+    }
+
+    onMounted(() => {
+      loadDataForTab()
+    })
+
+    watch(tab, () => {
+      loadDataForTab()
+    })
+
+    const updateStatus = async (row: OrderRecord) => {
+      try {
+        const selectedStatus = row.tempStatus // ใช้สถานะจาก tempStatus ที่เลือกใน dropdown
+        if (!selectedStatus) {
+          console.error('Status is missing!')
+          return
+        }
+
+        // เรียก API เพื่ออัปเดตสถานะของคำสั่งซื้อ
+        await axios.patch(`http://localhost:5002/order-records/${row.id}/status/${selectedStatus}`)
+
+        // อัปเดตสถานะจริงใน row หลังจากที่ได้รับการยืนยัน
+        row.status = selectedStatus
+
+        console.log('สถานะคำสั่งซื้ออัปเดตแล้ว')
+        // คุณสามารถเพิ่มการรีเฟรชข้อมูลหรือแสดงข้อความแสดงสถานะอัปเดต
+
+        // รีเฟรชข้อมูลของแท็บนี้หลังจากการอัปเดต
+        loadDataForTab() // รีเฟรชข้อมูลทั้งหมด
+      } catch (error) {
+        console.error('Error updating status:', error)
+      }
+    }
+
+    const statusClass = (status: string) => {
+      console.log('Current Status:', status) // ตรวจสอบค่าของ status
+      if (status === 'delivered') {
+        return 'bg-green text-white'
+      } else if (status === 'pending') {
+        return 'bg-blue text-white'
+      }
+      return ''
+    }
+    const columns: QTableColumn[] = [
+      { name: 'id', label: 'ID', align: 'center', field: 'id' },
+      { name: 'name', label: 'ชื่อ', align: 'center', field: 'name' },
+      { name: 'quantity', label: 'จำนวนทั้งหมด', align: 'center', field: 'quantity' },
+      { name: 'unit', label: 'หน่วย', align: 'center', field: 'unit' },
+      { name: 'minStock', label: 'จำนวนที่เหลือ', align: 'center', field: 'minStock' },
+      { name: 'price', label: 'ราคา/unit', align: 'center', field: 'price' },
+      { name: 'supplier', label: 'นำเข้าจาก', align: 'center', field: 'supplier' },
+      { name: 'lastOrder', label: 'วันที่นำเข้าล่าสุด', align: 'center', field: 'lastOrder' },
+    ]
+
+    const cartColumns: QTableColumn[] = [
+      { name: 'id', label: 'ID', align: 'center', field: 'id' },
+      { name: 'orderQuantity', label: 'จำนวน', align: 'center', field: 'orderQuantity' },
+      { name: 'total', label: 'ราคารวม', align: 'center', field: 'total' },
+      { name: 'lastOrder', label: 'วันที่นำเข้าล่าสุด', align: 'center', field: 'lastOrder' },
+      { name: 'unit', label: 'หน่วย', align: 'center', field: 'unit' },
+      { name: 'price', label: 'ราคา/unit', align: 'center', field: 'price' },
+      { name: 'supplier', label: 'นำเข้าจาก', align: 'center', field: 'supplier' },
+      { name: 'name', label: 'ชื่อสินค้า', align: 'center', field: 'name' },
+      { name: 'category', label: 'หมวดหมู่', align: 'center', field: 'category' },
+      { name: 'quantity', label: 'จำนวนก่อนนำเข้า', align: 'center', field: 'quantity' },
+      { name: 'minStock', label: 'จำนวนที่เหลือในคลัง', align: 'center', field: 'minStock' },
+    ]
+
+    const orderColumns: QTableColumn[] = [
+      { name: 'id', label: 'Order ID', align: 'center', field: 'id' },
+      { name: 'orderDate', label: 'วันที่', align: 'center', field: 'orderDate' },
+      { name: 'staffName', label: 'ชื่อหนักงาน', align: 'center', field: 'staffName' },
+      { name: 'status', label: 'สถานะ', align: 'center', field: 'status' },
+      { name: 'deliveryDate', label: 'วันที่ได้รับสินค้า', align: 'center', field: 'deliveryDate' },
+      { name: 'note', label: 'หมายเหตุ', align: 'center', field: 'note' },
+      { name: 'totalAmount', label: 'ยอดรวม', align: 'center', field: 'totalAmount' },
+      { name: 'updateStatus', label: 'การดำเนินการ', align: 'center', field: 'updateStatus' },
+    ]
+
+    const filteredOrders = computed(() => {
+      let filteredData = orderHistory.value
+
+      // กรองตามสถานะ
+      if (statusFilter.value !== 'ทั้งหมด') {
+        filteredData = filteredData.filter((order) => order.status === statusFilter.value)
+      }
+
+      // กรองตามช่วงวันที่
+      if (startDate.value) {
+        filteredData = filteredData.filter(
+          (order) => new Date(order.orderDate) >= new Date(startDate.value),
+        )
+      }
+      if (endDate.value) {
+        filteredData = filteredData.filter(
+          (order) => new Date(order.orderDate) <= new Date(endDate.value),
+        )
+      }
+
+      // กรองตามคำค้นหาในช่องค้นหา (searchTerm)
+      if (searchOrderTerm.value) {
+        filteredData = filteredData.filter(
+          (order) =>
+            order.id.toString().includes(searchOrderTerm.value) || // ค้นหาตาม ID
+            order.staffName.includes(searchOrderTerm.value), // ค้นหาตามชื่อผู้สั่ง
+        )
+      }
+
+      return filteredData
+    })
+
+    const filteredProducts = computed(() => {
+      return products.value.filter((product) =>
+        product.name.toLowerCase().includes(searchTerm.value.toLowerCase()),
+      )
+    })
+
+    const addToCart = async (product: InventoryItem) => {
+      try {
+        const itemToAdd = {
+          items: [
+            {
+              inventoryItemId: product.id, // ใช้ inventoryItemId แทน productId
+              orderQuantity: product.orderQuantity, // ใช้ orderQuantity แทน quantity
+            },
+          ],
+        }
+
+        await axios.post('http://localhost:5002/cart-items', itemToAdd)
+        console.log('เพิ่มสินค้าลงตะกร้าแล้ว')
+        loadCart() // รีเฟรชข้อมูลตะกร้าหลังจากเพิ่มสินค้า
+      } catch (error) {
+        console.error('Error adding to cart:', error)
+      }
+      loadDataForTab()
+    }
+
+    return {
+      tab,
+      products,
+      columns,
+      cartItems,
+      cartColumns,
+      orderHistory,
+      orderColumns,
+      searchTerm,
+      selectedCategory,
+      searchOrderTerm,
+      statusFilter,
+      categories,
+      statuses,
+      startDate,
+      endDate,
+      filteredOrders,
+      updateStatus,
+      viewDetails,
+      statusesUpdate,
+      statusClass,
+      dialogVisible,
+      selectedOrder,
+      closeDialog,
+      filteredProducts,
+      addToCart,
+      selectedQuantity,
+      increaseQuantity,
+      decreaseQuantity,
+      isOrderDialogVisible,
+      isDetailsDialogVisible,
+      openOrderDialog,
+      closeOrderDialog,
+      confirmOrder,
+    }
+  },
+})
+</script>
+
+<style scoped>
+.text-head {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-top: -15px;
+  margin-bottom: 15px;
+}
+
+.q-input,
+.q-select {
+  width: 100%;
+}
+
+.q-w-100 {
+  width: 20%;
+}
+
+.q-mt-sm {
+  margin-top: 8px;
+}
+
+.q-mb-md {
+  margin-bottom: 16px;
+}
+
+.text-date {
+  width: 30%;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-weight: bold;
+  margin-right: -2%;
+}
+.orderTab-button-margin {
+  display: flex;
+  justify-content: space-between;
+  width: 98.4%;
+  margin-bottom: 17px;
+  margin-left: 15px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px; /* ทำให้ป้ายมีขอบมน */
+  font-weight: bold;
+  text-align: center;
+  font-size: 14px;
+  text-transform: capitalize; /* ทำให้ข้อความเริ่มต้นตัวพิมพ์ใหญ่ */
+}
+
+.bg-green {
+  background-color: #90ee90; /* สีเขียว */
+}
+
+.bg-blue {
+  background-color: #007bff; /* สีน้ำเงิน */
+}
+
+.text-white {
+  color: white;
+}
+</style>
