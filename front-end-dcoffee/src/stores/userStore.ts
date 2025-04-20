@@ -15,7 +15,7 @@ export const useUserStore = defineStore('user', () => {
   // ดึงข้อมูลผู้ใช้ทั้งหมด
   async function getUsers() {
     try {
-      Loading.show({ 
+      Loading.show({
         message: 'กำลังโหลดข้อมูลผู้ใช้...',
       })
 

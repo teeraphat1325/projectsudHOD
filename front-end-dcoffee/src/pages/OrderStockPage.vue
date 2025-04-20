@@ -5,6 +5,7 @@
       <q-tab name="order-history" label="รายการคำสั่งซื้อ" />
       <q-tab name="all-products" label="สินค้าทั้งหมด" />
       <q-tab name="cart" label="ตะกร้าสินค้า" />
+      <q-tab name="report" label="รายงาน" />
     </q-tabs>
 
     <q-separator />
@@ -51,7 +52,7 @@
               outlined
               dense
               type="date"
-              class="q-w-100"
+              class="date-align"
             />
             <div class="text-date">ถึงวันที่ :</div>
             <q-input
@@ -60,7 +61,8 @@
               outlined
               dense
               type="date"
-              class="q-w-100"
+              class="date-align"
+              style="margin-left: -20px"
             />
           </div>
 
@@ -127,7 +129,15 @@
           <div class="text-head">สินค้าทั้งหมด</div>
 
           <!-- ฟิลเตอร์การค้นหา -->
-          <div class="q-mb-md" style="display: flex; justify-content: space-between">
+          <div
+            class="q-mb-md"
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 40px;
+            "
+          >
             <!-- ค้นหาสินค้า -->
             <q-input
               v-model="searchTerm"
@@ -145,8 +155,7 @@
             <q-btn
               label="ตะกร้าสินค้า"
               color="primary"
-              class="q-mt-md"
-              icon-right="keyboard_arrow_right"
+              icon="shopping_cart"
               @click="tab = 'cart'"
             />
           </div>
@@ -156,9 +165,10 @@
             <q-card v-for="product in filteredProducts" :key="product.id" class="q-mb-md">
               <q-card-section>
                 <div class="text-h6">{{ product.name }}</div>
-                <div class="text-body2">ราคา: {{ product.price }} บาท</div>
-                <div class="text-body2">คงเหลือ: {{ product.quantity }} ชิ้น</div>
-                <div class="text-body2">ซัพพลายเออร์: {{ product.supplier }}</div>
+                <div class="text-price">ราคา: {{ product.price }} บาท</div>
+                <div class="text-detail">คงเหลือ: {{ product.quantity }} ชิ้น</div>
+                <div class="text-detail">ซัพพลายเออร์: {{ product.supplier }}</div>
+                <div class="text-detail">สั่งซื้อล่าสุด: {{ product.lastOrder }}</div>
               </q-card-section>
 
               <q-card-actions>
@@ -171,6 +181,7 @@
                   outlined
                   dense
                   class="q-w-100"
+                  style="width: 10%; margin-right: 10px"
                 >
                   <template v-slot:append>
                     <q-btn flat icon="remove" @click="decreaseQuantity(product)" />
@@ -199,6 +210,13 @@
           />
         </q-card-section>
       </q-tab-panel>
+
+      <q-tab-panel name="report">
+        <q-card-section>
+          <div class="text-head">รายงานและวิเคราะห์ข้อมูล</div>
+          <h1>ควยเบส</h1>
+        </q-card-section>
+      </q-tab-panel>
     </q-tab-panels>
 
     <!-- QDialog for Order Details -->
@@ -222,16 +240,56 @@
       </q-card>
     </q-dialog>
 
-    <!-- QDialog for Order Confirmation -->
+    <!-- QDialog สำหรับยืนยันการสั่งซื้อ -->
     <q-dialog v-model="isOrderDialogVisible">
-      <q-card>
-        <q-card-section>
-          <div class="text-center text-h6">ยืนยันการสั่งซื้อ</div>
-          <p>กรุณายืนยันการสั่งซื้อของท่าน</p>
+      <q-card class="dialog-card">
+        <q-card-section class="q-pa-md">
+          <div class="text-h6">ยืนยันคำสั่งซื้อ</div>
+          <div class="q-mt-md" style="background-color: aqua">
+            <div>เลขที่คำสั่งซื้อ</div>
+            {{ orderId }}
+            <q-input
+              v-model="userId"
+              placeholder="กรุณากรอก ID ผู้สั่ง"
+              outlined
+              dense
+              class="q-w-100"
+              style="width: 30%"
+            >
+            </q-input>
+            <q-input
+              v-model="staffName"
+              placeholder="กรุณากรอกชื่อผู้สั่ง"
+              outlined
+              dense
+              class="q-w-100"
+              style="width: 30%"
+            >
+            </q-input>
+            <div>หมายเหตุ :</div>
+            <q-input
+              v-model="note"
+              placeholder="เพิ่มหมายเหตุเพิ่มเติมหรือรายละเอียด (ถ้ามี)"
+              outlined
+              dense
+              type="textarea"
+              autogrow
+              class="q-w-100"
+              style="width: 50%"
+            >
+            </q-input>
+          </div>
+
+          <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm" />
         </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="ยกเลิก" color="negative" @click="closeOrderDialog" />
-          <q-btn flat label="ยืนยัน" color="positive" @click="confirmOrder" />
+
+        <q-card-actions
+          class="q-pt-none"
+          style="margin-top: auto; display: flex; justify-content: flex-end; align-items: flex-end"
+        >
+          <q-btn label="ยืนยัน" color="primary" @click="confirmOrder" style="margin-right: 10px" />
+          <q-btn label="ยกเลิก" color="secondary" @click="isOrderDialogVisible = false" />
+          <q-btn label="asd" color="primary" @click="ahh" style="margin-right: 10px" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -240,7 +298,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, onMounted, watch, computed } from 'vue'
-import { type QTableColumn } from 'quasar'
+import { Notify, type QTableColumn } from 'quasar'
 import axios from 'axios'
 
 import type { CartItem, InventoryItem, OrderRecord } from 'src/models'
@@ -272,7 +330,22 @@ export default defineComponent({
     const isOrderDialogVisible = ref(false) // ใช้สำหรับควบคุมการแสดง/ซ่อนไดอะล็อกยืนยันการสั่งซื้อ
     const isDetailsDialogVisible = ref(false) // ใช้สำหรับควบคุมการแสดง/ซ่อนไดอะล็อกรายละเอียดการสั่งซื้อ
 
+    const userId = ref()
+    const orderId = ref(0)
+    const staffName = ref('')
+    const note = ref('Urgent order for weekend')
+
+    const orderData = {
+      staffName: staffName.value, // ชื่อผู้สั่งซื้อ
+      note: note.value || 'Urgent order for weekend', // หมายเหตุ (ถ้ามี)
+      userId: userId.value || 0, // ใช้ id ของผู้ใช้งานที่ล็อกอิน
+    }
+
     const openOrderDialog = () => {
+      // คำนวณ orderId โดยการหาค่า ID ที่สูงที่สุดใน orderHistory แล้วบวก 1
+      const maxOrderId = Math.max(...orderHistory.value.map((order: OrderRecord) => order.id), 0)
+      orderId.value = maxOrderId + 1
+
       isOrderDialogVisible.value = true
     }
 
@@ -281,10 +354,48 @@ export default defineComponent({
       isOrderDialogVisible.value = false
     }
 
+    const ahh = () => {
+      console.log(staffName.value)
+      console.log(userId.value)
+      console.log(note.value)
+    }
+
     // ฟังก์ชันยืนยันการสั่งซื้อ
-    const confirmOrder = () => {
-      console.log('Order confirmed!')
-      closeOrderDialog() // ปิดไดอะล็อกหลังจากยืนยันการสั่งซื้อ
+    const confirmOrder = async () => {
+      const orderData = {
+        staffName: staffName.value, // ชื่อผู้สั่งซื้อ
+        note: note.value || 'Urgent order for weekend', // หมายเหตุ (ถ้ามี)
+        userId: Number(userId.value) || 0, // ใช้ id ของผู้ใช้งานที่ล็อกอิน
+      }
+
+      try {
+        // ตรวจสอบว่า orderData มีค่าเต็ม
+        console.log('Data to send:', orderData)
+
+        // เรียกใช้ API เพื่อสร้างคำสั่งซื้อจากตะกร้า
+        const response = await axios.post(
+          'http://localhost:5002/order-records/from-cart',
+          orderData,
+        )
+
+        // ตรวจสอบการตอบกลับจาก API
+        if (response.status === 200) {
+          console.log('Order successfully created:', response.data)
+        } else {
+          console.error('Error from API:', response)
+        }
+
+        // ปิดไดอะล็อกหลังจากการยืนยัน
+        closeOrderDialog()
+      } catch (error) {
+        console.error('Error confirming order:', error)
+        // แสดงข้อความแจ้งข้อผิดพลาด
+        Notify.create({
+          message: 'ไม่สามารถยืนยันคำสั่งซื้อได้',
+          color: 'negative',
+          position: 'top',
+        })
+      }
     }
 
     const increaseQuantity = (product: InventoryItem) => {
@@ -351,6 +462,7 @@ export default defineComponent({
 
     onMounted(() => {
       loadDataForTab()
+      // loadUserData()
     })
 
     watch(tab, () => {
@@ -518,6 +630,12 @@ export default defineComponent({
       openOrderDialog,
       closeOrderDialog,
       confirmOrder,
+      note,
+      userId,
+      staffName,
+      orderId,
+      orderData,
+      ahh,
     }
   },
 })
@@ -552,7 +670,7 @@ export default defineComponent({
   width: 30%;
   height: 40px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   text-align: center;
   font-weight: bold;
@@ -586,5 +704,35 @@ export default defineComponent({
 
 .text-white {
   color: white;
+}
+.dialog-card {
+  width: 100%; /* กำหนดความกว้างของ dialog */
+  max-width: 900px; /* กำหนดความกว้างสูงสุด */
+  height: 900px; /* ความสูงปรับตามเนื้อหา */
+  max-height: 1000px; /* กำหนดความสูงสูงสุด */
+  overflow: hidden;
+}
+
+.q-card-section {
+  padding: 20px;
+}
+
+.q-card-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+}
+.date-align {
+  margin-left: -15px;
+}
+.text-price {
+  font-size: large;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #007bff;
+}
+.text-detail {
+  color: #444444;
 }
 </style>
