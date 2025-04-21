@@ -114,6 +114,8 @@ export interface InventoryItem {
   supplier: string
   lastOrder: string
   categoryId: number
+  category: Category // เพิ่ม category เป็น object ที่มี type 'Category'
+  branchId: number
   orderQuantity: number
 }
 
@@ -140,5 +142,5 @@ export interface OrderRecord {
   note: string
   totalAmount: number
   userId: number
-  tempStatus?: string;
+  tempStatus?: string
 }

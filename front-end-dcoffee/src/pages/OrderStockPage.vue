@@ -4,7 +4,6 @@
     <q-tabs v-model="tab" dense align="left" style="margin-left: 20px">
       <q-tab name="order-history" label="รายการคำสั่งซื้อ" />
       <q-tab name="all-products" label="สินค้าทั้งหมด" />
-      <q-tab name="cart" label="ตะกร้าสินค้า" />
       <q-tab name="report" label="รายงาน" />
     </q-tabs>
 
@@ -125,91 +124,138 @@
 
       <!-- สินค้าทั้งหมด -->
       <q-tab-panel name="all-products">
-        <q-card-section>
-          <div class="text-head">สินค้าทั้งหมด</div>
+        <div style="display: flex; gap: 10px; width: 100%; margin-bottom: 17px">
+          <q-card-section style="width: 60%">
+            <div class="text-head">สินค้าทั้งหมด</div>
 
-          <!-- ฟิลเตอร์การค้นหา -->
-          <div
-            class="q-mb-md"
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 40px;
-            "
-          >
-            <!-- ค้นหาสินค้า -->
-            <q-input
-              v-model="searchTerm"
-              placeholder="ค้นหาสินค้า"
-              outlined
-              dense
-              class="q-w-100"
-              style="width: 30%"
+            <!-- ฟิลเตอร์การค้นหา -->
+            <div
+              class="q-mb-md"
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+              "
             >
-              <template v-slot:prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
+              <!-- ค้นหาสินค้า -->
+              <q-input
+                v-model="searchTerm"
+                placeholder="ค้นหาสินค้า"
+                outlined
+                dense
+                class="q-w-100"
+                style="width: 30%"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="search" />
+                </template>
+              </q-input>
+            </div>
 
-            <q-btn
-              label="ตะกร้าสินค้า"
-              color="primary"
-              icon="shopping_cart"
-              @click="tab = 'cart'"
-            />
-          </div>
-
-          <!-- แสดงสินค้า -->
-          <div class="q-gutter-md">
-            <q-card v-for="product in filteredProducts" :key="product.id" class="q-mb-md">
-              <q-card-section>
-                <div class="text-h6">{{ product.name }}</div>
-                <div class="text-price">ราคา: {{ product.price }} บาท</div>
-                <div class="text-detail">คงเหลือ: {{ product.quantity }} ชิ้น</div>
-                <div class="text-detail">ซัพพลายเออร์: {{ product.supplier }}</div>
-                <div class="text-detail">สั่งซื้อล่าสุด: {{ product.lastOrder }}</div>
-              </q-card-section>
-
-              <q-card-actions>
-                <q-input
-                  v-model="product.orderQuantity"
-                  type="number"
-                  min="1"
-                  max="100"
-                  label="จำนวน"
-                  outlined
-                  dense
-                  class="q-w-100"
-                  style="width: 10%; margin-right: 10px"
+            <div>
+              <q-tabs
+                v-model="selectedTab"
+                dense
+                align="left"
+                active-class="selected-tab"
+                normal-class="unselected-tab"
+                indicator-color="transparent"
+              >
+                <q-tab name="all-products" label="All" />
+                <q-tab name="1" label="Coffee" />
+                <q-tab name="2" label="Bakery" />
+                <q-tab name="3" label="Food" />
+                <q-tab name="4" label="Beverage" />
+              </q-tabs>
+            </div>
+            <!-- แสดงสินค้า -->
+            <div class="q-gutter-md">
+              <div
+                style="
+                  display: flex;
+                  width: 100%;
+                  height: 550px;
+                  background-color: #240c10;
+                  justify-content: center;
+                "
+              >
+                <div
+                  style="
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                    width: 99%;
+                    margin-bottom: 17px;
+                    overflow-y: auto;
+                    height: 530px;
+                    margin: 10px;
+                  "
                 >
-                  <template v-slot:append>
-                    <q-btn flat icon="remove" @click="decreaseQuantity(product)" />
-                    <q-btn flat icon="add" @click="increaseQuantity(product)" />
-                  </template>
-                </q-input>
-                <q-btn label="เพิ่มลงตะกร้า" color="primary" @click="addToCart(product)" />
-              </q-card-actions>
-            </q-card>
-          </div>
-        </q-card-section>
+                  <div
+                    v-for="product in filteredProducts"
+                    :key="product.id"
+                    style="box-sizing: border-box; min-width: 0; height: 230px"
+                  >
+                    <q-card
+                      class="q-mb-md"
+                      style="
+                        height: 100%;
+                        border: 1px solid #ccc;
+                        border-radius: 8px;
+                        width: 100%;
+                        margin-right: 60px;
+                      "
+                    >
+                      <q-card-section>
+                        <div class="text-h6">{{ product.name }}</div>
+                        <div class="text-price">ราคา: {{ product.price }} บาท</div>
+                        <div class="text-detail">คงเหลือ: {{ product.quantity }} ชิ้น</div>
+                        <div class="text-detail">ซัพพลายเออร์: {{ product.supplier }}</div>
+                        <div class="text-detail">สั่งซื้อล่าสุด: {{ product.lastOrder }}</div>
+                      </q-card-section>
+
+                      <q-card-actions>
+                        <q-input
+                          v-model="product.orderQuantity"
+                          type="number"
+                          min="1"
+                          max="100"
+                          label="จำนวน"
+                          outlined
+                          dense
+                          style="width: 50%; margin-right: 10px"
+                        >
+                          <template v-slot:append>
+                            <q-btn flat icon="remove" @click="decreaseQuantity(product)" />
+                            <q-btn flat icon="add" @click="increaseQuantity(product)" />
+                          </template>
+                        </q-input>
+                        <q-btn label="เพิ่มลงตะกร้า" color="primary" @click="addToCart(product)" />
+                      </q-card-actions>
+                    </q-card>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </q-card-section>
+
+          <q-card-section style="width: 40%">
+            <div class="text-head">ตะกร้าสินค้า</div>
+            <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm" />
+
+            <!-- ปุ่มดำเนินการ -->
+            <q-btn
+              label="ยืนยันการสั่งซื้อ"
+              color="primary"
+              class="q-mt-md"
+              @click="openOrderDialog"
+            />
+          </q-card-section>
+        </div>
       </q-tab-panel>
 
       <!-- ตะกร้าสินค้า -->
-      <q-tab-panel name="cart">
-        <q-card-section>
-          <div class="text-head">ตะกร้าสินค้า</div>
-          <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm" />
-
-          <!-- ปุ่มดำเนินการ -->
-          <q-btn
-            label="ยืนยันการสั่งซื้อ"
-            color="primary"
-            class="q-mt-md"
-            @click="openOrderDialog"
-          />
-        </q-card-section>
-      </q-tab-panel>
 
       <q-tab-panel name="report">
         <q-card-section>
@@ -335,6 +381,8 @@ export default defineComponent({
     const staffName = ref('')
     const note = ref('Urgent order for weekend')
 
+    const selectedTab = ref('all-products')
+
     const orderData = {
       staffName: staffName.value, // ชื่อผู้สั่งซื้อ
       note: note.value || 'Urgent order for weekend', // หมายเหตุ (ถ้ามี)
@@ -386,6 +434,7 @@ export default defineComponent({
         }
 
         // ปิดไดอะล็อกหลังจากการยืนยัน
+        loadCart()
         closeOrderDialog()
       } catch (error) {
         console.error('Error confirming order:', error)
@@ -420,9 +469,11 @@ export default defineComponent({
     const loadProducts = async () => {
       try {
         const response = await axios.get('http://localhost:5002/inventory-items')
+        // แปลงข้อมูลให้เป็น categoryId แทน category object
         products.value = response.data.map((item: InventoryItem) => ({
           ...item,
-          orderQuantity: 1,
+          categoryId: item.category?.id || item.categoryId,
+          orderQuantity: item.orderQuantity || 1, // ดึง id จาก category ถ้ามี
         }))
       } catch (error) {
         console.error('Error loading products:', error)
@@ -431,8 +482,9 @@ export default defineComponent({
 
     const loadCart = async () => {
       try {
-        const response = await axios.get('http://localhost:5002/cart-items')
+        const response = await axios.get('http://localhost:5002/cart-item')
         cartItems.value = response.data
+        console.log('ข้อมูลตะกร้า:', cartItems.value) // ตรวจสอบข้อมูลที่ดึงมา
       } catch (error) {
         console.error('Error loading cart items:', error)
       }
@@ -462,6 +514,8 @@ export default defineComponent({
 
     onMounted(() => {
       loadDataForTab()
+      loadProducts()
+      loadCart()
       // loadUserData()
     })
 
@@ -522,7 +576,7 @@ export default defineComponent({
       { name: 'price', label: 'ราคา/unit', align: 'center', field: 'price' },
       { name: 'supplier', label: 'นำเข้าจาก', align: 'center', field: 'supplier' },
       { name: 'name', label: 'ชื่อสินค้า', align: 'center', field: 'name' },
-      { name: 'category', label: 'หมวดหมู่', align: 'center', field: 'category' },
+      { name: 'categoryId', label: 'หมวดหมู่', align: 'center', field: 'categoryId' },
       { name: 'quantity', label: 'จำนวนก่อนนำเข้า', align: 'center', field: 'quantity' },
       { name: 'minStock', label: 'จำนวนที่เหลือในคลัง', align: 'center', field: 'minStock' },
     ]
@@ -571,9 +625,16 @@ export default defineComponent({
     })
 
     const filteredProducts = computed(() => {
-      return products.value.filter((product) =>
-        product.name.toLowerCase().includes(searchTerm.value.toLowerCase()),
-      )
+      console.log('Selected Tab:', selectedTab.value) // ตรวจสอบค่า selectedTab
+      if (selectedTab.value === 'all-products') {
+        console.log('All products:', products.value) // ตรวจสอบว่ามีข้อมูลสินค้าหรือไม่
+        return products.value
+      } else {
+        const categoryId = parseInt(selectedTab.value) // แปลง selectedTab เป็นเลข
+        console.log('categoryId:', categoryId) // ตรวจสอบ categoryId ที่แปลงแล้ว
+        console.log('Products:', products.value)
+        return products.value.filter((product) => product.categoryId === categoryId)
+      }
     })
 
     const addToCart = async (product: InventoryItem) => {
@@ -587,7 +648,7 @@ export default defineComponent({
           ],
         }
 
-        await axios.post('http://localhost:5002/cart-items', itemToAdd)
+        await axios.post('http://localhost:5002/cart-item', itemToAdd)
         console.log('เพิ่มสินค้าลงตะกร้าแล้ว')
         loadCart() // รีเฟรชข้อมูลตะกร้าหลังจากเพิ่มสินค้า
       } catch (error) {
@@ -636,6 +697,7 @@ export default defineComponent({
       orderId,
       orderData,
       ahh,
+      selectedTab,
     }
   },
 })
@@ -734,5 +796,15 @@ export default defineComponent({
 }
 .text-detail {
   color: #444444;
+}
+.selected-tab {
+  color: white;
+  background-color: #240c10; /* สี active */
+  font-weight: bold;
+}
+
+.unselected-tab {
+  color: #240c10; /* สี default */
+  background-color: white; /* สีพื้นหลัง tab */
 }
 </style>
