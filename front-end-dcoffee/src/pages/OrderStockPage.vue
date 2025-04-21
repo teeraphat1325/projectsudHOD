@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md" style="height: 800px">
     <div class="text-h6 q-mb-lg" style="margin-left: 15px; margin-top: 10px">Inventory Order</div>
     <q-tabs v-model="tab" dense align="left" style="margin-left: 20px">
       <q-tab name="order-history" label="รายการคำสั่งซื้อ" />
@@ -10,7 +10,7 @@
     <q-separator />
 
     <!-- ใช้ q-tab-panels เดียว -->
-    <q-tab-panels v-model="tab">
+    <q-tab-panels v-model="tab" style="height: 690px">
       <!-- ประวัติการสั่งซื้อ -->
       <q-tab-panel name="order-history">
         <q-card-section>
@@ -126,19 +126,10 @@
       <q-tab-panel name="all-products">
         <div style="display: flex; gap: 10px; width: 100%; margin-bottom: 17px">
           <q-card-section style="width: 60%">
-            <div class="text-head">สินค้าทั้งหมด</div>
-
             <!-- ฟิลเตอร์การค้นหา -->
-            <div
-              class="q-mb-md"
-              style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-              "
-            >
+            <div class="q-mb-md" style="display: flex; align-items: center; margin-bottom: 10px">
               <!-- ค้นหาสินค้า -->
+              <div class="menu-text">Menu</div>
               <q-input
                 v-model="searchTerm"
                 placeholder="ค้นหาสินค้า"
@@ -153,23 +144,23 @@
               </q-input>
             </div>
 
-            <div>
-              <q-tabs
-                v-model="selectedTab"
-                dense
-                align="left"
-                active-class="selected-tab"
-                normal-class="unselected-tab"
-                indicator-color="transparent"
-              >
-                <q-tab name="all-products" label="All" />
-                <q-tab name="1" label="Coffee" />
-                <q-tab name="2" label="Bakery" />
-                <q-tab name="3" label="Food" />
-                <q-tab name="4" label="Beverage" />
-              </q-tabs>
-            </div>
+            <q-tabs
+              v-model="selectedTab"
+              dense
+              align="left"
+              active-class="selected-tab"
+              normal-class="unselected-tab"
+              indicator-color="transparent"
+            >
+              <q-tab name="all-products" label="All" />
+              <q-tab name="1" label="Coffee" />
+              <q-tab name="2" label="Bakery" />
+              <q-tab name="3" label="Food" />
+              <q-tab name="4" label="Beverage" />
+            </q-tabs>
+
             <!-- แสดงสินค้า -->
+
             <div class="q-gutter-md">
               <div
                 style="
@@ -195,16 +186,15 @@
                   <div
                     v-for="product in filteredProducts"
                     :key="product.id"
-                    style="box-sizing: border-box; min-width: 0; height: 230px"
+                    class="col"
+                    style="box-sizing: border-box; height: 230px"
                   >
-                    <q-card
-                      class="q-mb-md"
+                    <div
                       style="
                         height: 100%;
                         border: 1px solid #ccc;
                         border-radius: 8px;
-                        width: 100%;
-                        margin-right: 60px;
+                        background-color: #ffffff;
                       "
                     >
                       <q-card-section>
@@ -214,14 +204,12 @@
                         <div class="text-detail">ซัพพลายเออร์: {{ product.supplier }}</div>
                         <div class="text-detail">สั่งซื้อล่าสุด: {{ product.lastOrder }}</div>
                       </q-card-section>
-
-                      <q-card-actions>
+                      <q-card-actions style="justify-content: flex-start">
                         <q-input
-                          v-model="product.orderQuantity"
-                          type="number"
+                          v-model.number="product.orderQuantity"
+                          type="text"
                           min="1"
                           max="100"
-                          label="จำนวน"
                           outlined
                           dense
                           style="width: 50%; margin-right: 10px"
@@ -233,7 +221,7 @@
                         </q-input>
                         <q-btn label="เพิ่มลงตะกร้า" color="primary" @click="addToCart(product)" />
                       </q-card-actions>
-                    </q-card>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -482,7 +470,7 @@ export default defineComponent({
 
     const loadCart = async () => {
       try {
-        const response = await axios.get('http://localhost:5002/cart-item')
+        const response = await axios.get('http://localhost:5002/cart-items')
         cartItems.value = response.data
         console.log('ข้อมูลตะกร้า:', cartItems.value) // ตรวจสอบข้อมูลที่ดึงมา
       } catch (error) {
@@ -568,17 +556,10 @@ export default defineComponent({
     ]
 
     const cartColumns: QTableColumn[] = [
-      { name: 'id', label: 'ID', align: 'center', field: 'id' },
-      { name: 'orderQuantity', label: 'จำนวน', align: 'center', field: 'orderQuantity' },
-      { name: 'total', label: 'ราคารวม', align: 'center', field: 'total' },
-      { name: 'lastOrder', label: 'วันที่นำเข้าล่าสุด', align: 'center', field: 'lastOrder' },
-      { name: 'unit', label: 'หน่วย', align: 'center', field: 'unit' },
-      { name: 'price', label: 'ราคา/unit', align: 'center', field: 'price' },
-      { name: 'supplier', label: 'นำเข้าจาก', align: 'center', field: 'supplier' },
       { name: 'name', label: 'ชื่อสินค้า', align: 'center', field: 'name' },
-      { name: 'categoryId', label: 'หมวดหมู่', align: 'center', field: 'categoryId' },
-      { name: 'quantity', label: 'จำนวนก่อนนำเข้า', align: 'center', field: 'quantity' },
-      { name: 'minStock', label: 'จำนวนที่เหลือในคลัง', align: 'center', field: 'minStock' },
+      { name: 'orderQuantity', label: 'จำนวน', align: 'center', field: 'orderQuantity' },
+      { name: 'unit', label: 'หน่วย', align: 'center', field: 'unit' },
+      { name: 'total', label: 'ราคารวม', align: 'center', field: 'total' },
     ]
 
     const orderColumns: QTableColumn[] = [
@@ -775,14 +756,41 @@ export default defineComponent({
   overflow: hidden;
 }
 
-.q-card-section {
-  padding: 20px;
+.row {
+  display: flex;
+  flex-wrap: wrap; /* ให้ย้ายสินค้าไปแถวใหม่เมื่อแถวเต็ม */
+  justify-content: space-between; /* จัดระยะห่างระหว่างคอลัมน์ */
 }
 
-.q-card-actions {
+.col {
+  flex: 1 1 30%; /* แบ่งพื้นที่ให้มี 3 คอลัมน์ */
+  margin: 10px; /* ระยะห่างระหว่างคอลัมน์ */
+}
+
+.q-card {
+  height: 100%; /* กำหนดความสูงให้เต็ม */
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.q-card-section {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  padding: 15px;
+}
+
+/* สำหรับหน้าจอที่มีขนาดเล็ก (มือถือ) แสดง 2 คอลัมน์ */
+@media (max-width: 768px) {
+  .col {
+    flex: 1 1 45%; /* แสดง 2 คอลัมน์ */
+  }
+}
+
+/* สำหรับหน้าจอที่มีขนาดเล็กมาก (มือถือแนวตั้ง) แสดง 1 คอลัมน์ */
+@media (max-width: 480px) {
+  .col {
+    flex: 1 1 100%; /* แสดง 1 คอลัมน์ */
+  }
 }
 .date-align {
   margin-left: -15px;
@@ -806,5 +814,11 @@ export default defineComponent({
 .unselected-tab {
   color: #240c10; /* สี default */
   background-color: white; /* สีพื้นหลัง tab */
+}
+.menu-text {
+  margin-right: 10px;
+  font-weight: bold;
+  font-size: large;
+  color: #240c10;
 }
 </style>
