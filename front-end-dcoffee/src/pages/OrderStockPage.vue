@@ -111,7 +111,12 @@
         </q-card-section>
 
         <div class="orderTab-button-margin">
-          <q-btn label="รายงานและการวิเคราะห์ข้อมูล" color="purple-5" class="q-mt-md" />
+          <q-btn
+            label="รายงานและการวิเคราะห์ข้อมูล"
+            color="purple-5"
+            class="q-mt-md"
+            @click="tab = 'report'"
+          />
           <q-btn
             label="สั่งซื้อสินค้าใหม่"
             color="primary"
@@ -229,8 +234,33 @@
           </q-card-section>
 
           <q-card-section style="width: 40%">
-            <div class="text-head">ตะกร้าสินค้า</div>
-            <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm" />
+            <div class="text-head-cart">
+              Order Number
+              <div style="font-size: 19px; margin-bottom: 10px">#{{ orderId }}</div>
+            </div>
+            <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm">
+              <template v-slot:body-cell-action="props">
+                <q-td :props="props">
+                  <!-- ปุ่มลบ -->
+                  <q-btn
+                    color="negative"
+                    icon="delete"
+                    flat
+                    @click="removeItemFromCart(props.row)"
+                  />
+                </q-td>
+              </template>
+
+              <!-- แสดงข้อความเมื่อไม่มีข้อมูล -->
+              <template v-slot:no-data>
+                <div style="text-align: center; width: 100%; padding: 20px; color: grey">
+                  No Item Selected
+                </div>
+              </template>
+            </q-table>
+
+            <!-- แสดงราคารวม -->
+            <div class="text-price">ราคารวม: {{ totalPrice }} บาท</div>
 
             <!-- ปุ่มดำเนินการ -->
             <q-btn
@@ -248,7 +278,77 @@
       <q-tab-panel name="report">
         <q-card-section>
           <div class="text-head">รายงานและวิเคราะห์ข้อมูล</div>
-          <h1>ควยเบส</h1>
+        </q-card-section>
+        <q-card-section>
+          <q-form @submit.prevent="handleOrderFilter" class="q-gutter-md">
+            <!-- เลือกประเภทการรายงาน -->
+            <div>ประเภทการรายงาน</div>
+            <q-select v-model="reportType" :options="reportOptions" dense outlined required />
+            <!-- แสดงเฉพาะเมื่อเลือก 'รายงานรายวัน' -->
+            <div v-if="reportType === 'รายงานรายวัน'">
+              <div>วันที่</div>
+              <q-input
+                v-model="reportDate"
+                label="วันที่"
+                outlined
+                dense
+                type="date"
+                class="date-align"
+              />
+            </div>
+            <div>เดือน</div>
+            <q-select v-model="mont" :options="montOption" dense outlined required />
+            <!-- เลือกปี -->
+            <div>ปี</div>
+            <q-select v-model="year" :options="years" dense outlined required />
+
+            <!-- เลือกประเภทการวิเคราะห์ -->
+          </q-form>
+          <!-- ปุ่มแสดงรายงาน -->
+          <q-btn label="แสดงรายงาน" type="submit" color="primary" class="q-mt-sm" />
+          <q-table :rows="filteredOrders" :columns="orderColumns" row-key="id" class="q-pa-sm">
+            <template v-slot:body-cell-status="props">
+              <q-td :props="props">
+                <div :class="statusClass(props.row.status)" class="status-badge">
+                  {{ props.row.status }}
+                </div>
+              </q-td>
+            </template>
+            <!-- Slot สำหรับการอัปเดตสถานะ -->
+            <template v-slot:body-cell-updateStatus="props">
+              <q-td :props="props">
+                <div style="display: flex; justify-content:">
+                  <!-- เลือกสถานะ -->
+                  <q-select
+                    v-if="props.row.status !== 'delivered'"
+                    v-model="props.row.tempStatus"
+                    :options="statusesUpdate"
+                    outlined
+                    dense
+                    class="q-w-100"
+                    style="max-width: 120px; margin-right: 20px"
+                  />
+                  <!-- ปุ่มยืนยันการอัปเดต -->
+                  <q-btn
+                    v-if="props.row.status !== 'delivered'"
+                    label="ยืนยัน"
+                    color="green"
+                    class="q-mt-sm"
+                    style="margin: 1px; margin-right: 10px"
+                    @click="updateStatus(props.row)"
+                  />
+                  <!-- ปุ่มดูรายละเอียด -->
+                  <q-btn
+                    label="ดูรายละเอียด"
+                    color="primary"
+                    class="q-mt-sm"
+                    style="margin: 1px"
+                    @click="viewDetails(props.row)"
+                  />
+                </div>
+              </q-td>
+            </template>
+          </q-table>
         </q-card-section>
       </q-tab-panel>
     </q-tab-panels>
@@ -267,6 +367,11 @@
             <strong>Amount:</strong> {{ selectedOrder?.totalAmount }}<br />
             <strong>Note:</strong> {{ selectedOrder?.note }}<br />
           </div>
+
+          <div>
+            <strong>Order Details:</strong>
+            <q-table :rows="orderDetail" :columns="orderDetailColumns" row-key="id" />
+          </div>
         </q-card-section>
         <q-card-actions>
           <q-btn label="Close" color="primary" @click="closeDialog" />
@@ -276,7 +381,7 @@
 
     <!-- QDialog สำหรับยืนยันการสั่งซื้อ -->
     <q-dialog v-model="isOrderDialogVisible">
-      <q-card class="dialog-card">
+      <q-card class="dialog">
         <q-card-section class="q-pa-md">
           <div class="text-h6">ยืนยันคำสั่งซื้อ</div>
           <div class="q-mt-md" style="background-color: aqua">
@@ -316,14 +421,14 @@
 
           <q-table :rows="cartItems" :columns="cartColumns" row-key="id" class="q-pa-sm" />
         </q-card-section>
-
+        <!-- แสดงราคารวม -->
+        <div class="text-price">ราคารวม: {{ totalPrice }} บาท</div>
         <q-card-actions
           class="q-pt-none"
           style="margin-top: auto; display: flex; justify-content: flex-end; align-items: flex-end"
         >
           <q-btn label="ยืนยัน" color="primary" @click="confirmOrder" style="margin-right: 10px" />
           <q-btn label="ยกเลิก" color="secondary" @click="isOrderDialogVisible = false" />
-          <q-btn label="asd" color="primary" @click="ahh" style="margin-right: 10px" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -335,8 +440,7 @@ import { defineComponent, ref, onMounted, watch, computed } from 'vue'
 import { Notify, type QTableColumn } from 'quasar'
 import axios from 'axios'
 
-import type { CartItem, InventoryItem, OrderRecord } from 'src/models'
-
+import type { CartItem, InventoryItem, OrderDetail, OrderRecord } from 'src/models'
 export default defineComponent({
   setup() {
     const tab = ref('order-history') // กำหนดค่าเริ่มต้นให้แสดงแท็บ "รายการคำสั่งซื้อ"
@@ -344,6 +448,8 @@ export default defineComponent({
     const products = ref<InventoryItem[]>([])
     const cartItems = ref<CartItem[]>([])
     const orderHistory = ref<OrderRecord[]>([])
+    const orderDetail = ref<OrderDetail[]>([])
+    const orderHistoryReport = ref<OrderRecord[]>([])
 
     const searchTerm = ref('')
     const selectedCategory = ref('ทั้งหมด')
@@ -351,6 +457,7 @@ export default defineComponent({
     const statusFilter = ref('ทั้งหมด')
     const startDate = ref('')
     const endDate = ref('')
+    const reportDate = ref('')
 
     const categories = ['ทั้งหมด', 'อุปกรณ์สำนักงาน', 'เครื่องใช้ไฟฟ้า', 'อิเล็กทรอนิกส์']
     const statuses = ['ทั้งหมด', 'pending', 'delivered']
@@ -371,17 +478,46 @@ export default defineComponent({
 
     const selectedTab = ref('all-products')
 
+    // กร๊าฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟ
+    const today = ref(new Date().toISOString().split('T')[0])
+    const reportType = ref('รายงานรายวัน')
+    const year = ref('มกราคม')
+
+    const mont = ref('2025')
+
+    const reportOptions = ['รายงานรายวัน', 'รายงานรายเดือน', 'รายงานรายปี', 'กราฟและแผนภูมิ']
+    const montOption = [
+      'มกราคม',
+      'กุมภาพันธ์',
+      'มีนาคม',
+      'เมษายน',
+      'พฤษภาคม',
+      'มิถุนายน',
+      'กรกฎาคม',
+      'สิงหาคม',
+      'กันยายน',
+      'ตุลาคม',
+      'พฤศจิกายน',
+      'ธันวาคม',
+    ]
+    const years = ['2025', '2024', '2023', '2022', '2021']
+
+    //--------------------------------------------------
+
     const orderData = {
       staffName: staffName.value, // ชื่อผู้สั่งซื้อ
       note: note.value || 'Urgent order for weekend', // หมายเหตุ (ถ้ามี)
       userId: userId.value || 0, // ใช้ id ของผู้ใช้งานที่ล็อกอิน
     }
 
-    const openOrderDialog = () => {
+    const findOrderId = () => {
       // คำนวณ orderId โดยการหาค่า ID ที่สูงที่สุดใน orderHistory แล้วบวก 1
       const maxOrderId = Math.max(...orderHistory.value.map((order: OrderRecord) => order.id), 0)
       orderId.value = maxOrderId + 1
+    }
 
+    const openOrderDialog = () => {
+      findOrderId()
       isOrderDialogVisible.value = true
     }
 
@@ -445,13 +581,15 @@ export default defineComponent({
       }
     }
 
-    const viewDetails = (row: OrderRecord) => {
-      selectedOrder.value = row
-      dialogVisible.value = true
+    const viewDetails = async (row: OrderRecord) => {
+      selectedOrder.value = row // เก็บข้อมูลคำสั่งซื้อ
+      dialogVisible.value = true // เปิด dialog
+      await getOrderDetails(row.id) // เรียกข้อมูล orderDetail สำหรับคำสั่งซื้อที่คลิก
     }
 
     const closeDialog = () => {
       dialogVisible.value = false
+      orderDetail.value = []
     }
 
     const loadProducts = async () => {
@@ -470,7 +608,7 @@ export default defineComponent({
 
     const loadCart = async () => {
       try {
-        const response = await axios.get('http://localhost:5002/cart-items')
+        const response = await axios.get('http://localhost:5002/cart-item')
         cartItems.value = response.data
         console.log('ข้อมูลตะกร้า:', cartItems.value) // ตรวจสอบข้อมูลที่ดึงมา
       } catch (error) {
@@ -482,6 +620,18 @@ export default defineComponent({
       try {
         const response = await axios.get('http://localhost:5002/order-records')
         orderHistory.value = response.data.map((order: OrderRecord) => ({
+          ...order,
+          tempStatus: order.status, // ตั้งค่า tempStatus เริ่มต้นจาก status
+        }))
+      } catch (error) {
+        console.error('Error loading order history:', error)
+      }
+    }
+
+    const loadOrderHistoryForRecord = async () => {
+      try {
+        const response = await axios.get('http://localhost:5002/order-records')
+        orderHistoryReport.value = response.data.map((order: OrderRecord) => ({
           ...order,
           tempStatus: order.status, // ตั้งค่า tempStatus เริ่มต้นจาก status
         }))
@@ -504,11 +654,13 @@ export default defineComponent({
       loadDataForTab()
       loadProducts()
       loadCart()
+      findOrderId()
       // loadUserData()
     })
 
     watch(tab, () => {
       loadDataForTab()
+      findOrderId()
     })
 
     const updateStatus = async (row: OrderRecord) => {
@@ -559,7 +711,9 @@ export default defineComponent({
       { name: 'name', label: 'ชื่อสินค้า', align: 'center', field: 'name' },
       { name: 'orderQuantity', label: 'จำนวน', align: 'center', field: 'orderQuantity' },
       { name: 'unit', label: 'หน่วย', align: 'center', field: 'unit' },
+      { name: 'supplier', label: 'นำเข้าจาก', align: 'center', field: 'supplier' },
       { name: 'total', label: 'ราคารวม', align: 'center', field: 'total' },
+      { name: 'action', label: 'ลบสินค้า', align: 'center', field: 'action' }, // คอลัมน์สำหรับปุ่มลบ
     ]
 
     const orderColumns: QTableColumn[] = [
@@ -572,6 +726,49 @@ export default defineComponent({
       { name: 'totalAmount', label: 'ยอดรวม', align: 'center', field: 'totalAmount' },
       { name: 'updateStatus', label: 'การดำเนินการ', align: 'center', field: 'updateStatus' },
     ]
+
+    const orderDetailColumns: QTableColumn[] = [
+      { name: 'productName', label: 'Product Name', align: 'center', field: 'name' },
+      { name: 'quantity', label: 'Quantity', align: 'center', field: 'quantity' },
+      { name: 'unitPrice', label: 'Unit Price', align: 'center', field: 'unit' },
+      { name: 'total', label: 'Total', align: 'center', field: 'total' },
+    ]
+
+    const orderColumnsReport: QTableColumn[] = [
+      { name: 'id', label: 'Order ID', align: 'center', field: 'id' },
+      { name: 'orderDate', label: 'วันที่', align: 'center', field: 'orderDate' },
+      { name: 'staffName', label: 'ชื่อพนักงาน', align: 'center', field: 'staffName' },
+      { name: 'status', label: 'สถานะ', align: 'center', field: 'status' },
+      { name: 'totalAmount', label: 'ยอดรวม', align: 'center', field: 'totalAmount' },
+      { name: 'updateStatus', label: 'การดำเนินการ', align: 'center', field: 'updateStatus' },
+    ]
+
+    const getOrderDetails = async (orderId: number) => {
+      try {
+        // ดึงข้อมูลทั้งหมดจาก API
+        const response = await axios.get('http://localhost:5002/order-detail')
+
+        // ตรวจสอบข้อมูลที่ได้รับจาก API
+        console.log('API Response:', response.data)
+
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          // กรองข้อมูลเฉพาะรายการที่ orderDetailId ตรงกับ orderId จาก row ที่เลือก
+          orderDetail.value = response.data.filter((item) => item.orderRecordId === orderId)
+
+          // ถ้าไม่มีข้อมูลที่ตรงกับ orderRecordId
+          if (orderDetail.value.length === 0) {
+            console.error('No matching order details found for this order ID.')
+          }
+        } else {
+          console.error('No valid order detail data found.')
+          orderDetail.value = []
+        }
+
+        console.log('Filtered Order Details:', orderDetail.value) // ดูข้อมูลที่กรองแล้ว
+      } catch (error) {
+        console.error('Error fetching order details:', error)
+      }
+    }
 
     const filteredOrders = computed(() => {
       let filteredData = orderHistory.value
@@ -605,6 +802,10 @@ export default defineComponent({
       return filteredData
     })
 
+    const deliveredOrders = computed(() => {
+      return filteredOrders.value.filter((order) => order.status === 'delivered')
+    })
+
     const filteredProducts = computed(() => {
       console.log('Selected Tab:', selectedTab.value) // ตรวจสอบค่า selectedTab
       if (selectedTab.value === 'all-products') {
@@ -635,8 +836,30 @@ export default defineComponent({
       } catch (error) {
         console.error('Error adding to cart:', error)
       }
-      loadDataForTab()
+      // loadDataForTab()
     }
+
+    const totalPrice = computed(() => {
+      return cartItems.value.reduce((sum, item) => {
+        return sum + item.orderQuantity * item.price // คำนวณ totalPrice สำหรับแต่ละรายการ
+      }, 0)
+    })
+
+    const removeItemFromCart = async (item: CartItem) => {
+      try {
+        // item จะเป็น props.row ที่ได้รับ
+        console.log(item) // จะมีข้อมูลของแถวสินค้านั้นๆ เช่น { id: 1, name: 'Product A', orderQuantity: 2, unit: 'pcs', total: 100 }
+
+        // เรียก API เพื่อลบสินค้าจากตะกร้าโดยใช้ item.id
+        await axios.delete(`http://localhost:5002/cart-item/${item.id}`)
+
+        // รีเฟรชข้อมูลตะกร้า
+        loadCart()
+      } catch (error) {
+        console.error('Error removing item from cart:', error)
+      }
+    }
+    const handleOrderFilter = () => {}
 
     return {
       tab,
@@ -679,6 +902,25 @@ export default defineComponent({
       orderData,
       ahh,
       selectedTab,
+      findOrderId,
+      totalPrice,
+      removeItemFromCart,
+      orderDetail,
+      getOrderDetails,
+      orderDetailColumns,
+      reportType,
+      year,
+      reportOptions,
+      years,
+      handleOrderFilter,
+      today,
+      montOption,
+      mont,
+      orderHistoryReport,
+      orderColumnsReport,
+      loadOrderHistoryForRecord,
+      deliveredOrders,
+      reportDate,
     }
   },
 })
@@ -690,6 +932,12 @@ export default defineComponent({
   font-weight: bold;
   margin-top: -15px;
   margin-bottom: 15px;
+}
+.text-head-cart {
+  text-align: center;
+  font-size: 25px;
+  font-weight: bold;
+  margin-top: -15px;
 }
 
 .q-input,
@@ -748,7 +996,7 @@ export default defineComponent({
 .text-white {
   color: white;
 }
-.dialog-card {
+.dialog {
   width: 100%; /* กำหนดความกว้างของ dialog */
   max-width: 900px; /* กำหนดความกว้างสูงสุด */
   height: 900px; /* ความสูงปรับตามเนื้อหา */

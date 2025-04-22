@@ -144,3 +144,15 @@ export interface OrderRecord {
   userId: number
   tempStatus?: string
 }
+
+export interface OrderDetail {
+  id: number
+  name: string
+  quantity: number
+  unit: string
+  price: number
+  total: number
+  supplier: string
+  orderRecordId: number
+  inventoryItemId: number
+}
