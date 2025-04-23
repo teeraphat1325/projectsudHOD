@@ -283,30 +283,71 @@
           <q-form @submit.prevent="handleOrderFilter" class="q-gutter-md">
             <!-- เลือกประเภทการรายงาน -->
             <div>ประเภทการรายงาน</div>
-            <q-select v-model="reportType" :options="reportOptions" dense outlined required />
+            <q-select
+              v-model="reportType"
+              :options="reportOptions"
+              dense
+              outlined
+              required
+              @update:model-value="updateChart"
+            />
             <!-- แสดงเฉพาะเมื่อเลือก 'รายงานรายวัน' -->
             <div v-if="reportType === 'รายงานรายวัน'">
-              <div>วันที่</div>
-              <q-input
-                v-model="reportDate"
-                label="วันที่"
-                outlined
-                dense
-                type="date"
-                class="date-align"
-              />
+              <div style="width: 50%">
+                <div>จากวันที่</div>
+                <q-input
+                  v-model="reportStartDate"
+                  label="วันที่"
+                  outlined
+                  dense
+                  type="date"
+                  class="date-align"
+                />
+                <div>ถึงวันที่</div>
+                <q-input
+                  v-model="reportEndDate"
+                  label="วันที่"
+                  outlined
+                  dense
+                  type="date"
+                  class="date-align"
+                />
+              </div>
             </div>
-            <div>เดือน</div>
-            <q-select v-model="mont" :options="montOption" dense outlined required />
-            <!-- เลือกปี -->
-            <div>ปี</div>
-            <q-select v-model="year" :options="years" dense outlined required />
+            <div v-if="reportType === 'รายงานรายเดือน'">
+              <div>เดือน</div>
+              <q-select v-model="mont" :options="montOption" dense outlined required />
+              <!-- เลือกปี -->
+              <div>ปี</div>
+              <q-select v-model="year" :options="years" dense outlined required />
+            </div>
+
+            <div v-if="reportType === 'รายงานรายปี'">
+              <div>ปี</div>
+              <q-select v-model="year" :options="years" dense outlined required />
+            </div>
 
             <!-- เลือกประเภทการวิเคราะห์ -->
           </q-form>
           <!-- ปุ่มแสดงรายงาน -->
-          <q-btn label="แสดงรายงาน" type="submit" color="primary" class="q-mt-sm" />
-          <q-table :rows="filteredOrders" :columns="orderColumns" row-key="id" class="q-pa-sm">
+          <div>จำนวนคำสั่งซื้อ: {{ filteredOrdersReport.filteredCount }} รายการ</div>
+          <div>ยอดรวม :{{ filteredOrdersReport.totalAmount }} บาท</div>
+
+          <!-- กราฟ Line Chart -->
+          <div>
+            <line-chart
+              v-if="reportType === 'รายงานรายเดือน'"
+              :data="monthlyData"
+              style="width: 100%; height: 400px; max-width: 800px; margin: 0 auto"
+            />
+            <line-chart
+              v-if="reportType === 'รายงานรายปี'"
+              :data="yearlyData"
+              style="width: 100%; height: 400px; max-width: 800px; margin: 0 auto"
+            />
+          </div>
+
+          <q-table :rows="deliveredOrders" :columns="orderColumns" row-key="id" class="q-pa-sm">
             <template v-slot:body-cell-status="props">
               <q-td :props="props">
                 <div :class="statusClass(props.row.status)" class="status-badge">
@@ -441,7 +482,35 @@ import { Notify, type QTableColumn } from 'quasar'
 import axios from 'axios'
 
 import type { CartItem, InventoryItem, OrderDetail, OrderRecord } from 'src/models'
+import { Line } from 'vue-chartjs'
+import type { ChartData } from 'chart.js'
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  PointElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+} from 'chart.js'
+
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  PointElement,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+)
+
 export default defineComponent({
+  components: {
+    LineChart: Line,
+  },
   setup() {
     const tab = ref('order-history') // กำหนดค่าเริ่มต้นให้แสดงแท็บ "รายการคำสั่งซื้อ"
 
@@ -457,7 +526,13 @@ export default defineComponent({
     const statusFilter = ref('ทั้งหมด')
     const startDate = ref('')
     const endDate = ref('')
-    const reportDate = ref('')
+    const reportStartDate = ref('')
+    const reportEndDate = ref('')
+    const montId = ref(0)
+    const today = ref(new Date().toISOString().split('T')[0])
+    const reportType = ref('รายงานรายวัน')
+    const year = ref('')
+    const mont = ref('')
 
     const categories = ['ทั้งหมด', 'อุปกรณ์สำนักงาน', 'เครื่องใช้ไฟฟ้า', 'อิเล็กทรอนิกส์']
     const statuses = ['ทั้งหมด', 'pending', 'delivered']
@@ -479,13 +554,8 @@ export default defineComponent({
     const selectedTab = ref('all-products')
 
     // กร๊าฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟฟ
-    const today = ref(new Date().toISOString().split('T')[0])
-    const reportType = ref('รายงานรายวัน')
-    const year = ref('มกราคม')
 
-    const mont = ref('2025')
-
-    const reportOptions = ['รายงานรายวัน', 'รายงานรายเดือน', 'รายงานรายปี', 'กราฟและแผนภูมิ']
+    const reportOptions = ['รายงานรายวัน', 'รายงานรายเดือน', 'รายงานรายปี']
     const montOption = [
       'มกราคม',
       'กุมภาพันธ์',
@@ -661,7 +731,60 @@ export default defineComponent({
     watch(tab, () => {
       loadDataForTab()
       findOrderId()
+      console.log('startDate:', reportStartDate.value)
     })
+
+    watch(reportType, () => {
+      typeTo()
+    })
+
+    watch(mont, () => {
+      console.log('mont:', mont.value)
+      console.log('year:', year.value)
+    })
+
+    const typeTo = () => {
+      // ดึงเดือนและปีปัจจุบัน
+      const currentDate = new Date()
+      const currentMonthIndex = currentDate.getMonth() // ดึงเดือนปัจจุบัน (0-11)
+      const currentYear = currentDate.getFullYear() // ดึงปีปัจจุบัน
+
+      // แปลงเดือนเป็นชื่อเดือนภาษาไทย
+      const months = [
+        'มกราคม',
+        'กุมภาพันธ์',
+        'มีนาคม',
+        'เมษายน',
+        'พฤษภาคม',
+        'มิถุนายน',
+        'กรกฎาคม',
+        'สิงหาคม',
+        'กันยายน',
+        'ตุลาคม',
+        'พฤศจิกายน',
+        'ธันวาคม',
+      ]
+
+      const currentMonth = months[currentMonthIndex] // เดือนปัจจุบันในรูปแบบภาษาไทย
+
+      if (reportType.value === 'รายงานรายเดือน') {
+        reportStartDate.value = ''
+        reportEndDate.value = ''
+        mont.value = currentMonth || '' // ตั้งค่าเดือนเป็นเดือนปัจจุบัน ถ้าไม่มีค่าเป็นค่าว่าง
+        year.value = currentYear.toString() || '' // ตั้งค่าเป็นปีปัจจุบัน ถ้าไม่มีค่าเป็นค่าว่าง
+      }
+      if (reportType.value === 'รายงานรายวัน') {
+        mont.value = ''
+        year.value = ''
+      }
+
+      if (reportType.value === 'รายงานรายปี') {
+        reportStartDate.value = ''
+        reportEndDate.value = ''
+        mont.value = ''
+        year.value = currentYear.toString() || '' // ตั้งค่าเป็นปีปัจจุบัน ถ้าไม่มีค่าเป็นค่าว่าง
+      }
+    }
 
     const updateStatus = async (row: OrderRecord) => {
       try {
@@ -802,8 +925,76 @@ export default defineComponent({
       return filteredData
     })
 
+    const filteredOrdersReport = computed(() => {
+      let filteredData = orderHistory.value
+
+      // กรองตามช่วงวันที่
+      if (reportStartDate.value) {
+        filteredData = filteredData.filter(
+          (order) => new Date(order.orderDate) >= new Date(reportStartDate.value),
+        )
+      }
+      if (reportEndDate.value) {
+        filteredData = filteredData.filter(
+          (order) => new Date(order.orderDate) <= new Date(reportEndDate.value),
+        )
+      }
+
+      // กรองตามเดือนและปี
+      if (mont.value && year.value) {
+        const monthIndex = getMonthIndex(mont.value) // ฟังก์ชันแปลงชื่อเดือนเป็น index
+        const startOfMonth = new Date(Number(year.value), monthIndex, 1, 0, 0, 0) // วันที่เริ่มต้นของเดือน
+        const endOfMonth = new Date(Number(year.value), monthIndex + 1, 0, 23, 59, 59) // วันที่สิ้นสุดของเดือน
+
+        filteredData = filteredData.filter((order) => {
+          const orderDate = new Date(order.orderDate)
+          return orderDate >= startOfMonth && orderDate <= endOfMonth
+        })
+      }
+
+      // กรองตามปี
+      if (year.value && !mont.value) {
+        const startOfYear = new Date(Number(year.value), 0, 1, 0, 0, 0) // วันที่เริ่มต้นของปี
+        const endOfYear = new Date(Number(year.value), 11, 31, 23, 59, 59) // วันที่สิ้นสุดของปี
+
+        filteredData = filteredData.filter((order) => {
+          const orderDate = new Date(order.orderDate)
+          return orderDate >= startOfYear && orderDate <= endOfYear
+        })
+      }
+
+      // นับจำนวนรายการที่กรองได้
+      const filteredCount = filteredData.length
+
+      // นับจำนวนรายการทั้งหมด (ไม่กรอง)
+      const totalCount = orderHistory.value.length
+
+      // รวมยอดทั้งหมดจาก filteredData
+      const totalAmount = filteredData.reduce((acc, order) => acc + order.totalAmount, 0) // ใช้ฟิลด์ totalAmount ที่อยู่ในข้อมูล
+
+      return { filteredData, filteredCount, totalCount, totalAmount }
+    })
+
+    const getMonthIndex = (monthName: string): number => {
+      const months = [
+        'มกราคม',
+        'กุมภาพันธ์',
+        'มีนาคม',
+        'เมษายน',
+        'พฤษภาคม',
+        'มิถุนายน',
+        'กรกฎาคม',
+        'สิงหาคม',
+        'กันยายน',
+        'ตุลาคม',
+        'พฤศจิกายน',
+        'ธันวาคม',
+      ]
+      return months.indexOf(monthName) // คืนค่าดัชนีของเดือน
+    }
+
     const deliveredOrders = computed(() => {
-      return filteredOrders.value.filter((order) => order.status === 'delivered')
+      return filteredOrdersReport.value.filteredData.filter((order) => order.status === 'delivered')
     })
 
     const filteredProducts = computed(() => {
@@ -859,7 +1050,114 @@ export default defineComponent({
         console.error('Error removing item from cart:', error)
       }
     }
-    const handleOrderFilter = () => {}
+    //กร๊าฟฟฟฟฟฟฟฟฟฟฟฟ
+    // ข้อมูลรายเดือน
+    const monthlyData = computed(() => {
+      // ตรวจสอบว่าได้เลือกเดือนและปีหรือยัง
+      if (!mont.value || !year.value) {
+        return { labels: [], datasets: [] } // ถ้าไม่มีเดือนและปีที่เลือก ก็คืนค่ากราฟเปล่า
+      }
+
+      const monthIndex = montOption.indexOf(mont.value) // แปลงเดือนที่เลือกเป็น index
+      const selectedYear = parseInt(year.value) // แปลงปีที่เลือกเป็นเลข
+
+      // กรองคำสั่งซื้อตามเดือนและปีที่เลือก
+      const filteredData = filteredOrdersReport.value.filteredData.filter((order) => {
+        const orderDate = new Date(order.orderDate)
+        const orderMonth = orderDate.getMonth() // เดือนของคำสั่งซื้อ
+        const orderYear = orderDate.getFullYear() // ปีของคำสั่งซื้อ
+
+        // คืนค่าข้อมูลที่ตรงกับเดือนและปีที่เลือก
+        return orderMonth === monthIndex && orderYear === selectedYear
+      })
+
+      // หาจำนวนวันในเดือนที่เลือก
+      const daysInMonth = new Date(selectedYear, monthIndex + 1, 0).getDate()
+
+      // สร้าง array สำหรับยอดขายแต่ละวัน
+      const dailySales = Array(daysInMonth).fill(0)
+
+      // คำนวณยอดขายในแต่ละวัน
+      filteredData.forEach((order) => {
+        const orderDate = new Date(order.orderDate)
+        const dayOfMonth = orderDate.getDate() - 1 // วันของคำสั่งซื้อในเดือน (0-30)
+        if (dayOfMonth >= 0 && dayOfMonth < daysInMonth) {
+          dailySales[dayOfMonth] += order.totalAmount // เพิ่มยอดขายในวันนั้น
+        }
+      })
+
+      // คืนค่าข้อมูลกราฟ
+      return {
+        labels: Array.from({ length: daysInMonth }, (_, i) => `${i + 1} วัน`), // วันที่ 1 ถึง 31 ของเดือน
+        datasets: [
+          {
+            label: `ยอดขายเดือน ${montOption[monthIndex]} ${selectedYear}`, // ชื่อกราฟ
+            data: dailySales, // ข้อมูลยอดขายในแต่ละวัน
+            borderColor: '#FF7043', // สีเส้นของกราฟ
+            fill: false, // ไม่ให้กราฟเติมสีด้านล่าง
+          },
+        ],
+      }
+    })
+
+    // ข้อมูลรายปี
+    const yearlyData = computed(() => {
+      const selectedYear = parseInt(year.value)
+
+      const ordersInSelectedYear = filteredOrders.value.filter((order) => {
+        const orderYear = new Date(order.orderDate).getFullYear()
+        return orderYear === selectedYear
+      })
+
+      const monthlySales = Array(12).fill(0)
+
+      ordersInSelectedYear.forEach((order) => {
+        const orderMonth = new Date(order.orderDate).getMonth()
+        monthlySales[orderMonth] += order.totalAmount
+      })
+
+      return {
+        labels: [
+          'มกราคม',
+          'กุมภาพันธ์',
+          'มีนาคม',
+          'เมษายน',
+          'พฤษภาคม',
+          'มิถุนายน',
+          'กรกฎาคม',
+          'สิงหาคม',
+          'กันยายน',
+          'ตุลาคม',
+          'พฤศจิกายน',
+          'ธันวาคม',
+        ],
+        datasets: [
+          {
+            label: `ยอดขายปี ${selectedYear}`,
+            data: monthlySales,
+            borderColor: '#42A5F5',
+            fill: false,
+          },
+        ],
+      } as ChartData<'line', number[], string>
+    })
+
+    // ฟังก์ชันอัปเดตกราฟ
+    const updateChart = () => {
+      console.log('ประเภทรายงาน:', reportType.value)
+      // อัปเดตกราฟเมื่อมีการเปลี่ยนแปลงประเภทของรายงาน
+      if (reportType.value === 'รายงานรายเดือน') {
+        // ใช้ monthlyData.value ในการอัปเดตกราฟหรือทำงานกับข้อมูล
+        console.log('ข้อมูลกราฟรายเดือน:', monthlyData.value)
+        // คุณสามารถรีเฟรชกราฟหรือใช้ข้อมูลที่คำนวณแล้วในที่นี้
+      }
+    }
+
+    const handleOrderFilter = () => {
+      console.log(`เลือกเดือน: ${mont.value}, ปี: ${year.value}`)
+      // คำนวณข้อมูลกราฟเมื่อมีการเปลี่ยนแปลง
+      updateChart() // อัปเดตกราฟเมื่อเลือกเดือนและปี
+    }
 
     return {
       tab,
@@ -920,7 +1218,15 @@ export default defineComponent({
       orderColumnsReport,
       loadOrderHistoryForRecord,
       deliveredOrders,
-      reportDate,
+      reportStartDate,
+      filteredOrdersReport,
+      montId,
+      reportEndDate,
+      typeTo,
+      getMonthIndex,
+      monthlyData,
+      yearlyData,
+      updateChart,
     }
   },
 })
